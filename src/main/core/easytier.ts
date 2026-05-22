@@ -1,9 +1,16 @@
 import { spawn, ChildProcess } from 'child_process'
 import { app } from 'electron'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync, rmSync } from 'fs'
 
 const VIP_REGEX = /10\.\d{1,3}\.\d{1,3}\.\d{1,3}/
+
+export interface EasyTierStatus {
+  bundled: boolean
+  installed: boolean
+  bundledPath: string
+  installedPath: string
+}
 
 export class EasyTierWrapper {
   private process: ChildProcess | null = null
@@ -20,11 +27,50 @@ export class EasyTierWrapper {
     return this.process !== null && this.process.exitCode === null && !this.process.killed
   }
 
-  getBinaryPath(): string {
+  getBundledBinaryPath(): string {
     if (app.isPackaged) {
       return join(process.resourcesPath, 'easytier-core.exe')
     }
     return join(app.getAppPath(), 'resources', 'easytier-core.exe')
+  }
+
+  getInstalledBinaryPath(): string {
+    return join(app.getPath('userData'), 'easytier', 'easytier-core.exe')
+  }
+
+  getBinaryPath(): string {
+    return this.getInstalledBinaryPath()
+  }
+
+  getStatus(): EasyTierStatus {
+    const bundledPath = this.getBundledBinaryPath()
+    const installedPath = this.getInstalledBinaryPath()
+    return {
+      bundled: existsSync(bundledPath),
+      installed: existsSync(installedPath),
+      bundledPath,
+      installedPath
+    }
+  }
+
+  install(): EasyTierStatus {
+    const status = this.getStatus()
+    if (!status.bundled) {
+      throw new Error(`Bundled EasyTier binary not found: ${status.bundledPath}`)
+    }
+
+    mkdirSync(join(app.getPath('userData'), 'easytier'), { recursive: true })
+    copyFileSync(status.bundledPath, status.installedPath)
+    return this.getStatus()
+  }
+
+  uninstall(): EasyTierStatus {
+    if (this.isRunning) {
+      throw new Error('Stop EasyTier before uninstalling it.')
+    }
+
+    rmSync(this.getInstalledBinaryPath(), { force: true })
+    return this.getStatus()
   }
 
   setLogCallback(cb: (line: string) => void): void {
@@ -46,8 +92,9 @@ export class EasyTierWrapper {
     }
 
     const binPath = this.getBinaryPath()
+    const status = this.getStatus()
 
-    if (!existsSync(binPath)) {
+    if (!status.installed) {
       throw new Error(`EasyTier binary not found: ${binPath}`)
     }
 

@@ -5,7 +5,7 @@ import { SshExecutor } from './core/ssh'
 import { EnvironmentManager, Deployer, GameBlueprint } from './core/docker'
 import { SshClient } from './core/ssh'
 import { LocalDeployer, WarpHostInstance } from './core/localEngine'
-import { EasyTierWrapper } from './core/easytier'
+import { EasyTierStatus, EasyTierWrapper } from './core/easytier'
 import { BlueprintManager } from './core/blueprint'
 import { StoreManager } from './core/store'
 import {
@@ -34,6 +34,12 @@ interface FetchBlueprintsResult {
 
 interface OpenGuideResult {
   ok: boolean
+  error?: string
+}
+
+interface EasyTierStatusResult {
+  ok: boolean
+  status?: EasyTierStatus
   error?: string
 }
 
@@ -270,6 +276,26 @@ export function registerStopEasytierHandler(): void {
 
     await easytier.stop()
     return { ok: true, logs: ['[easytier] SD-WAN engine stopped.'] }
+  })
+}
+
+export function registerEasytierStatusHandler(): void {
+  ipcMain.handle('get-easytier-status', (): EasyTierStatusResult => {
+    try {
+      return { ok: true, status: easytier.getStatus() }
+    } catch (err) {
+      return { ok: false, error: safeErrorMessage(err) }
+    }
+  })
+}
+
+export function registerInstallEasytierHandler(): void {
+  ipcMain.handle('install-easytier', (): EasyTierStatusResult => {
+    try {
+      return { ok: true, status: easytier.install() }
+    } catch (err) {
+      return { ok: false, error: safeErrorMessage(err) }
+    }
   })
 }
 

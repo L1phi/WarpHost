@@ -12,6 +12,10 @@ WarpHost 使用内置的 EasyTier 创建虚拟局域网。
 easytier-core.exe
 ```
 
+最终用户不需要自己下载 EasyTier。
+
+安装时会有一个 **安装 EasyTier SD-WAN 组件** 复选框。如果当时没勾选，安装完成后也可以在 WarpHost 的 SD-WAN 区域点击 **安装 EasyTier**。
+
 开发环境必须手动放到：
 
 ```text
@@ -22,10 +26,11 @@ resources/easytier-core.exe
 
 1. 打开 WarpHost。
 2. 进入 **本地机房**。
-3. 在 SD-WAN 区域输入网络名称。
-4. 输入至少 8 位网络密钥。
-5. 点击连接。
-6. 等待虚拟 IP 出现。
+3. 如果提示 EasyTier 未安装，点击 **安装 EasyTier**。
+4. 在 SD-WAN 区域输入网络名称。
+5. 输入至少 8 位网络密钥。
+6. 点击连接。
+7. 等待虚拟 IP 出现。
 
 ## 多人联机
 

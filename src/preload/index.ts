@@ -72,6 +72,19 @@ export interface FetchBlueprintsResult {
   warnings: string[]
 }
 
+export interface EasyTierStatus {
+  bundled: boolean
+  installed: boolean
+  bundledPath: string
+  installedPath: string
+}
+
+export interface EasyTierStatusResult {
+  ok: boolean
+  status?: EasyTierStatus
+  error?: string
+}
+
 type LogCallback = (line: string) => void
 type VipCallback = (ip: string) => void
 type GuideTopic = 'usage' | 'cloud' | 'local' | 'sdwan' | 'instances'
@@ -100,6 +113,10 @@ const api = {
     ipcRenderer.invoke('start-easytier', payload),
 
   stopEasytier: (): Promise<SshResult> => ipcRenderer.invoke('stop-easytier'),
+
+  getEasytierStatus: (): Promise<EasyTierStatusResult> => ipcRenderer.invoke('get-easytier-status'),
+
+  installEasytier: (): Promise<EasyTierStatusResult> => ipcRenderer.invoke('install-easytier'),
 
   fetchBlueprints: (): Promise<FetchBlueprintsResult> => ipcRenderer.invoke('fetch-blueprints'),
 

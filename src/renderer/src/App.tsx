@@ -24,6 +24,13 @@ interface BlueprintInfo {
   volumeMapping: string
 }
 
+interface EasyTierStatus {
+  bundled: boolean
+  installed: boolean
+  bundledPath: string
+  installedPath: string
+}
+
 function App(): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<Tab>('cloud')
   const [host, setHost] = useState('')
@@ -57,6 +64,7 @@ function App(): React.JSX.Element {
   const [etRunning, setEtRunning] = useState(false)
   const [etVirtualIp, setEtVirtualIp] = useState<string | null>(null)
   const [copyTip, setCopyTip] = useState(false)
+  const [easytierStatus, setEasytierStatus] = useState<EasyTierStatus | null>(null)
 
   const persistReady = useRef(false)
   const persistBlueprintName = useRef<string | null>(null)
@@ -147,6 +155,30 @@ function App(): React.JSX.Element {
       }
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    window.api
+      .getEasytierStatus()
+      .then((result) => {
+        if (cancelled) return
+        if (result.ok && result.status) {
+          setEasytierStatus(result.status)
+        } else {
+          pushLogs(`[easytier] ${result.error ?? 'Failed to inspect EasyTier status.'}`)
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        const message = error instanceof Error ? error.message : 'Unknown IPC failure.'
+        pushLogs(`[easytier] ${message}`)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [pushLogs])
 
   const sshPayload = { host, username: 'root', password: rootPassword }
 
@@ -288,6 +320,12 @@ function App(): React.JSX.Element {
       return
     }
 
+    if (!easytierStatus?.installed) {
+      pushLogs('[easytier] EasyTier is not installed. Install it before connecting SD-WAN.')
+      setIsBusy(false)
+      return
+    }
+
     pushLogs(`[${ts()}] Starting EasyTier SD-WAN engine...`)
 
     try {
@@ -300,6 +338,26 @@ function App(): React.JSX.Element {
 
       if (result.ok) {
         setEtRunning(true)
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown IPC failure.'
+      pushLogs(`[fatal] ${message}`)
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  const handleInstallEasytier = async (): Promise<void> => {
+    setIsBusy(true)
+    pushLogs(`[${ts()}] Installing embedded EasyTier SD-WAN component...`)
+
+    try {
+      const result = await window.api.installEasytier()
+      if (result.ok && result.status) {
+        setEasytierStatus(result.status)
+        pushLogs('[easytier] EasyTier installed. You can connect SD-WAN now.')
+      } else {
+        pushLogs(`[easytier] ${result.error ?? 'Failed to install EasyTier.'}`)
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown IPC failure.'
@@ -576,6 +634,35 @@ function App(): React.JSX.Element {
                   </div>
                 </div>
 
+                {!easytierStatus?.installed && (
+                  <div className="mb-4 rounded-md border border-yellow-300/25 bg-yellow-300/10 px-4 py-3">
+                    <div className="flex items-center gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-yellow-200">
+                          EasyTier 未安装
+                        </div>
+                        <p className="mt-2 text-sm leading-6 text-slate-300">
+                          只有在无公网 IP、NAT、宿舍网、校园网或朋友 P2P 联机时才需要安装
+                          EasyTier。云服务器开服和公网 IPv6 开服可以暂时不启用。
+                        </p>
+                        {easytierStatus && !easytierStatus.bundled && (
+                          <p className="mt-1 font-mono text-xs text-red-300">
+                            Missing bundled binary: {easytierStatus.bundledPath}
+                          </p>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={handleInstallEasytier}
+                        disabled={isBusy || easytierStatus?.bundled === false}
+                        className="h-11 min-w-40 rounded-md border border-yellow-300/40 bg-yellow-300/20 px-5 font-mono text-xs font-black uppercase tracking-wider text-yellow-100 transition hover:bg-yellow-300/30 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        安装 EasyTier
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-4">
                   <label className="block">
                     <span className="mb-2 block text-xs font-semibold text-slate-400">
@@ -585,7 +672,7 @@ function App(): React.JSX.Element {
                       value={etNetworkName}
                       onChange={(e) => setEtNetworkName(e.target.value)}
                       onBlur={() => saveStore('sdwan.networkName', etNetworkName)}
-                      disabled={etRunning}
+                      disabled={etRunning || !easytierStatus?.installed}
                       placeholder="warphost-net"
                       className="h-11 w-full rounded-md border border-cyan-300/20 bg-slate-950/80 px-4 font-mono text-sm text-cyan-50 outline-none transition placeholder:text-slate-600 focus:border-cyan-300 focus:shadow-cyan-glow disabled:opacity-50"
                     />
@@ -599,7 +686,7 @@ function App(): React.JSX.Element {
                       value={etPassword}
                       onChange={(e) => setEtPassword(e.target.value)}
                       onBlur={() => saveStore('sdwan.networkSecret', etPassword)}
-                      disabled={etRunning}
+                      disabled={etRunning || !easytierStatus?.installed}
                       type="password"
                       placeholder="最少 8 位"
                       className="h-11 w-full rounded-md border border-cyan-300/20 bg-slate-950/80 px-4 font-mono text-sm text-cyan-50 outline-none transition placeholder:text-slate-600 focus:border-cyan-300 focus:shadow-cyan-glow disabled:opacity-50"
@@ -608,7 +695,7 @@ function App(): React.JSX.Element {
 
                   <button
                     onClick={handleToggleEasytier}
-                    disabled={isBusy}
+                    disabled={isBusy || !easytierStatus?.installed}
                     className={`h-11 min-w-44 rounded-md border px-6 text-sm font-black uppercase tracking-wider transition disabled:opacity-50 ${
                       etRunning
                         ? 'border-red-400/50 bg-red-400/20 text-red-200 hover:bg-red-400/30'

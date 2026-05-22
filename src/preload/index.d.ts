@@ -74,6 +74,19 @@ interface FetchBlueprintsResult {
   warnings: string[]
 }
 
+interface EasyTierStatus {
+  bundled: boolean
+  installed: boolean
+  bundledPath: string
+  installedPath: string
+}
+
+interface EasyTierStatusResult {
+  ok: boolean
+  status?: EasyTierStatus
+  error?: string
+}
+
 interface WarpHostAPI {
   deployServer(payload: DeployServerPayload): Promise<DeployServerResult>
   testSsh(payload: SshPayload): Promise<SshResult>
@@ -84,6 +97,8 @@ interface WarpHostAPI {
   controlInstance(payload: ControlInstancePayload): Promise<SshResult>
   startEasytier(payload: EasytierStartPayload): Promise<SshResult>
   stopEasytier(): Promise<SshResult>
+  getEasytierStatus(): Promise<EasyTierStatusResult>
+  installEasytier(): Promise<EasyTierStatusResult>
   fetchBlueprints(): Promise<FetchBlueprintsResult>
   openGuide(topic: GuideTopic): Promise<{ ok: boolean; error?: string }>
   store: {

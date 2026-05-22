@@ -13,6 +13,8 @@ import {
   registerControlInstanceHandler,
   registerStartEasytierHandler,
   registerStopEasytierHandler,
+  registerEasytierStatusHandler,
+  registerInstallEasytierHandler,
   registerFetchBlueprintsHandler,
   registerStoreGetHandler,
   registerStoreSetHandler,
@@ -54,6 +56,8 @@ function registerIpcHandlers(): void {
   registerControlInstanceHandler()
   registerStartEasytierHandler()
   registerStopEasytierHandler()
+  registerEasytierStatusHandler()
+  registerInstallEasytierHandler()
   registerFetchBlueprintsHandler()
   registerStoreGetHandler()
   registerStoreSetHandler()
